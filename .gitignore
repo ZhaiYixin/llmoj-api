@@ -1,0 +1,14 @@
+# Virtual environment
+venv/
+
+# SQLite database
+db.sqlite3
+
+# Python bytecode
+llmoj/__pycache__/
+
+# Environment variables
+.env
+
+# VSCode settings
+.vscode/
