@@ -1,5 +1,5 @@
 import json
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.views import View
 from dotenv import load_dotenv
 import os
@@ -28,13 +28,19 @@ class ConversationView(View):
         messages += self._get_conversation_messages(conversation_id)
         messages.append({"role": "user", "content": user_content})
 
-        response_content = self._get_openai_response(messages)
+        response_stream = self._get_openai_response_stream(messages)
 
         conversation = Conversation.objects.get(id=conversation_id)
         Message.objects.create(conversation=conversation, role='user', content=user_content)
-        Message.objects.create(conversation=conversation, role='assistant', content=response_content)
 
-        return JsonResponse({"response": response_content})
+        def stream_response():
+            assistant_content = ""
+            for chunk in response_stream:
+                yield chunk
+                assistant_content += chunk
+            Message.objects.create(conversation=conversation, role='assistant', content=assistant_content)
+
+        return StreamingHttpResponse(stream_response(), content_type='text/plain')
 
     def _get_openai_response(self, messages):
         api_key = os.getenv("API_KEY")
@@ -48,6 +54,20 @@ class ConversationView(View):
             stream=False
         )
         return response.choices[0].message.content
+
+    def _get_openai_response_stream(self, messages):
+        api_key = os.getenv("API_KEY")
+        base_url = os.getenv("BASE_URL")
+        model = os.getenv("MODEL")
+
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            stream=True
+        )
+        for chunk in response:
+            yield chunk.choices[0].delta.content
 
     def _get_conversation_messages(self, conversation_id):
         conversation_messages = Message.objects.filter(conversation_id=conversation_id).order_by('created_at')
