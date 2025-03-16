@@ -5,7 +5,7 @@ venv/
 db.sqlite3
 
 # Python bytecode
-llmoj/__pycache__/
+__pycache__/
 
 # Environment variables
 .env
