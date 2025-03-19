@@ -12,6 +12,7 @@ class Message(models.Model):
     role = models.CharField(max_length=10)  # 'system', 'user', or 'assistant'
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    tokens = models.IntegerField(default=0)  # Token count for the message
 
     def __str__(self):
         return f'{self.role}: {self.content}'
