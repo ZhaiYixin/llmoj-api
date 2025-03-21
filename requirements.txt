@@ -1,3 +1,6 @@
 Django==4.2.20
+django-cors-headers==4.4.0
+djangorestframework==3.15.2
 openai==1.66.3
 python-dotenv==1.0.1
+tiktoken==0.7.0

@@ -49,7 +49,6 @@ class LoginView(APIView):
 
 # 登出视图
 @api_view(['POST'])
-@authentication_classes([])
 @permission_classes([AllowAny])
 def logout_view(request):
     if request.user.is_authenticated:
