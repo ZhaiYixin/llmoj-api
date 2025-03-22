@@ -23,15 +23,24 @@ with open(os.path.join(os.path.dirname(__file__), './prompts/system.txt'), 'r', 
     PROMPT_SYSTEM = file.read()
     PROMPT_SYSTEM_TOKENS = _count_tokens(PROMPT_SYSTEM)
 
-def _get_messages(conversation_id):
-    conversation_messages = Message.objects.filter(conversation_id=conversation_id).order_by('created_at')
-    return [{"role": msg.role, "content": msg.content} for msg in conversation_messages]
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_conversations(request):
+    username = request.query_params.get('username', None)
+    if not username:
+        username = request.user.username
+    if username != request.user.username:
+        return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+    conversations = Conversation.objects.filter(user__username=username).order_by('-created_at')
+    conversation_list = [{"id": conv.id, "title": conv.title, "created_at": conv.created_at} for conv in conversations]
+    return Response({"conversations": conversation_list}, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_messages(request, conversation_id):
-    messages = _get_messages(conversation_id)
-    return Response({"messages": messages}, status=status.HTTP_200_OK)
+    messages = Message.objects.filter(conversation_id=conversation_id).order_by('created_at')
+    message_list = [{"role": msg.role, "content": msg.content} for msg in messages]
+    return Response({"messages": message_list}, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
