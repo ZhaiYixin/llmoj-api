@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    "design.apps.DesignConfig",
     "judge.apps.JudgeConfig",
     "accounts.apps.AccountsConfig",
     "chat.apps.ChatConfig",

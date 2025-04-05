@@ -2,12 +2,12 @@ from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.exceptions import ValidationError
 
-from .serializers import RegisterSerializer
+from .serializers import RegisterSerializer, UserSerializer
 
 
 # 注册视图
@@ -55,3 +55,12 @@ def logout_view(request):
         request.user.auth_token.delete()
         return Response({'message': '登出成功'}, status=status.HTTP_200_OK)
     return Response({'error': '用户未登录'}, status=status.HTTP_400_BAD_REQUEST)
+
+# 用户信息视图
+class UserInfoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        serializer = UserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)

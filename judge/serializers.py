@@ -5,11 +5,13 @@ class ProblemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Problem
         fields = ['id', 'title', 'description', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 class TestCaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = TestCase
         fields = ['id', 'ordinal', 'title', 'input', 'output']
+        read_only_fields = ['id', 'ordinal']
 
 class SubmissionSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField(read_only=True)

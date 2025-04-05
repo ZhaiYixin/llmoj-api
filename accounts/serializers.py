@@ -1,5 +1,6 @@
 from rest_framework.serializers import ModelSerializer
 from .models import CustomUser
+from django.contrib.auth import get_user_model
 
 class RegisterSerializer(ModelSerializer):
     class Meta:
@@ -16,3 +17,8 @@ class RegisterSerializer(ModelSerializer):
             password=validated_data['password'],
         )
         return user
+
+class UserSerializer(ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = ['username', 'full_name']
