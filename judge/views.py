@@ -6,6 +6,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.db import transaction
 
 from .models import Problem, TestCase, Submission, TestCaseResult
 from .serializers import ProblemSerializer, TestCaseSerializer, SubmissionSerializer, TestCaseResultSerializer
@@ -71,7 +72,7 @@ def run_code(request, problem_id):
     
     test = [{"input": input_data, "output": output_data}]
     
-    result = CLIENT.judge(
+    judge = CLIENT.judge(
         src=src,
         language_config=lang_config,
         max_cpu_time=1000,
@@ -80,7 +81,16 @@ def run_code(request, problem_id):
         output=True
     )
     
-    return Response(result, status=status.HTTP_200_OK)
+    if judge.get("err"):
+        return Response({"status": judge.get("err"), "message": judge.get("data")}, status=status.HTTP_200_OK)
+    
+    r = judge.get("data")[0]
+    
+    return Response({
+        "status": TestCaseResultSerializer.to_status(r.get("result")),
+        "message": TestCaseResultSerializer.to_message(r.get("result"), r.get("output"), r.get("cpu_time"), r.get("real_time"), r.get("memory"), r.get("exit_code"), r.get("signal"), r.get("error")),
+        "output": r.get("output"),
+    }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -101,14 +111,7 @@ def submit_code(request, problem_id):
     test_cases = TestCase.objects.filter(problem_id=problem_id).order_by('ordinal')
     test = [{"input": case.input, "output": case.output} for case in test_cases]
     
-    submission = Submission.objects.create(
-        user=request.user,
-        problem=problem,
-        src=src,
-        lang=lang,
-    )
-    
-    submission_result = CLIENT.judge(
+    judge = CLIENT.judge(
         src=src,
         language_config=lang_config,
         max_cpu_time=1000,
@@ -117,28 +120,33 @@ def submit_code(request, problem_id):
         output=True
     )
     
-    submission.err = submission_result.get("err")
-    submission.error_reason = submission_result.get("data") if submission_result.get("err") else None
-    submission.save()
-    
-    if not submission_result.get("err"):
-        results = submission_result.get("data", [])
-        test_case_results = [
-            TestCaseResult(
-                submission=submission,
-                test_case=case,
-                cpu_time=result.get("cpu_time"),
-                result=result.get("result"),
-                memory=result.get("memory"),
-                real_time=result.get("real_time"),
-                exit_code=result.get("exit_code"),
-                signal=result.get("signal"),
-                error=result.get("error"),
-                output=result.get("output"),
-            )
-            for case, result in zip(test_cases, results)
-        ]
-        TestCaseResult.objects.bulk_create(test_case_results)
+    with transaction.atomic():
+        submission = Submission.objects.create(
+            user=request.user,
+            problem=problem,
+            src=src,
+            lang=lang,
+            err=judge.get("err"),
+            error_reason=judge.get("data") if judge.get("err") else None,
+        )
+        
+        if not judge.get("err"):
+            test_case_results = [
+                TestCaseResult(
+                    submission=submission,
+                    test_case=case,
+                    result=result.get("result"),
+                    cpu_time=result.get("cpu_time"),
+                    real_time=result.get("real_time"),
+                    memory=result.get("memory"),
+                    output=result.get("output"),
+                    exit_code=result.get("exit_code"),
+                    signal=result.get("signal"),
+                    error=result.get("error"),
+                )
+                for case, result in zip(test_cases, judge.get("data", []))
+            ]
+            TestCaseResult.objects.bulk_create(test_case_results)
     
     return Response({"submission_id": submission.id}, status=status.HTTP_201_CREATED)
 
