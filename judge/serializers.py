@@ -30,12 +30,9 @@ class SubmissionSerializer(serializers.ModelSerializer):
         if obj.err:
             return obj.err
         
-        success_count = obj.results.filter(result=TestCaseResult.ResultCode.SUCCESS).count()
-        total_count = obj.results.count()
-    
-        if success_count == total_count:
+        if obj.success_count == obj.total_count:
             return "Accepted"
-        elif success_count == 0:
+        elif obj.success_count == 0:
             return "WrongAnswer"
         else:
             return "PartiallyAccepted"
@@ -44,10 +41,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
         if obj.err:
             return obj.error_reason
         
-        success_count = obj.results.filter(result=TestCaseResult.ResultCode.SUCCESS).count()
-        total_count = obj.results.count()
-        
-        return f"{success_count}/{total_count}"
+        return f"{obj.success_count} / {obj.total_count}"
 
 class TestCaseResultSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField(read_only=True)

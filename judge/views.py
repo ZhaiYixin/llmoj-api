@@ -82,14 +82,17 @@ def run_code(request, problem_id):
     )
     
     if judge.get("err"):
-        return Response({"status": judge.get("err"), "message": judge.get("data")}, status=status.HTTP_200_OK)
+        return Response({"err": judge.get("err"), "data": judge.get("data")}, status=status.HTTP_200_OK)
     
     r = judge.get("data")[0]
     
     return Response({
-        "status": TestCaseResultSerializer.to_status(r.get("result")),
-        "message": TestCaseResultSerializer.to_message(r.get("result"), r.get("output"), r.get("cpu_time"), r.get("real_time"), r.get("memory"), r.get("exit_code"), r.get("signal"), r.get("error")),
-        "output": r.get("output"),
+        "err": None,
+        "data": {
+            "status": TestCaseResultSerializer.to_status(r.get("result")),
+            "message": TestCaseResultSerializer.to_message(r.get("result"), r.get("output"), r.get("cpu_time"), r.get("real_time"), r.get("memory"), r.get("exit_code"), r.get("signal"), r.get("error")),
+            "output": r.get("output"),
+        }
     }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
@@ -121,6 +124,9 @@ def submit_code(request, problem_id):
     )
     
     with transaction.atomic():
+        total_count = len(test_cases)
+        success_count = 0 if judge.get("err") else sum(result.get("result") == TestCaseResult.ResultCode.SUCCESS for result in judge.get("data", []))
+        
         submission = Submission.objects.create(
             user=request.user,
             problem=problem,
@@ -128,6 +134,8 @@ def submit_code(request, problem_id):
             lang=lang,
             err=judge.get("err"),
             error_reason=judge.get("data") if judge.get("err") else None,
+            total_count=total_count,
+            success_count=success_count,
         )
         
         if not judge.get("err"):

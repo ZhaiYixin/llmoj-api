@@ -33,6 +33,8 @@ class Submission(models.Model):
     #     "err": "CompileError", 
     #     "data": "error resson"
     # }
+    total_count = models.PositiveIntegerField(default=0)
+    success_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
