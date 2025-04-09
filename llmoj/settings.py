@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    "assign.apps.AssignConfig",
     "design.apps.DesignConfig",
     "judge.apps.JudgeConfig",
     "accounts.apps.AccountsConfig",
