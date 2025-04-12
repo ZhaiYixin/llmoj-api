@@ -164,7 +164,11 @@ class ProblemView(APIView):
 
 
 class ProblemListView(APIView):
-    permission_classes = [IsAuthenticated, IsTeacher]
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        else:
+            return [IsAuthenticated(), IsTeacher()]
 
     def get(self, request, problem_list_id=None):
         if problem_list_id:

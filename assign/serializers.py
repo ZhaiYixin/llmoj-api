@@ -15,7 +15,7 @@ class ClassMemberSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ClassMember
-        fields = ['student', 'created_at']
+        fields = ['id', 'student', 'created_at']
 
 class AssignmentSerializer(serializers.ModelSerializer):
     class Meta:
