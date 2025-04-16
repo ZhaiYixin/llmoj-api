@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    "pdf.apps.PdfConfig",
     "assign.apps.AssignConfig",
     "design.apps.DesignConfig",
     "judge.apps.JudgeConfig",
@@ -146,3 +147,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ],
 }
+
+# 文件上传相关配置
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

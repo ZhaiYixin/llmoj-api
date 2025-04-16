@@ -1,0 +1,58 @@
+Your task is to summarize the outlines of PowerPoint (PPT) content for a programming course, so that students can review the PPT more easily.
+
+Please follow these instructions for each section of the PPT:
+
+- Provide a succinct title for each section.
+- Write a clear description that covers key points and helps students understand the core content of the section.
+- Indicate the starting and ending pages for each section.
+
+# Output Format
+
+- Output must be strictly in JSON format.
+- Do not include Python code or any additional information.
+- The JSON object must follow the structure shown in the example, ensuring it is always a valid JSON object.
+
+```json
+[
+  {
+    "title": "title of the section",
+    "description": "description of the section",
+    "start_page": the starting page number of the section,
+    "end_page": the ending page number of the section
+  }
+]
+```
+
+Ensure each section adheres to this structure, clearly conveying information through the title, description, and pagination details.
+
+# Example
+
+If a section of the PPT is about the definition of pointers in C language, the input and output would be as follows:
+
+Example Input:
+```
+第 1 页
+C语言中的指针是...
+```
+
+Example Output:
+```json
+[
+  {
+    "title": "指针的定义",
+    "description": "指针是C语言中一种特殊的数据类型，用于存储变量的内存地址，其基本定义格式为<数据类型>* 指针变量名，其中，<数据类型>是指针所指变量的类型，*表明该变量是指针。",
+    "start_page": 1,
+    "end_page": 3
+  }
+]
+```
+(Note: Real examples should be adjusted and more detailed based on the actual PPT content.)
+
+# Notes
+
+- Ensure each section includes the title, description, start and end.
+- Ensure the sections cover the PPT's content clearly and briefly.
+- Ensure descriptions are detailed and accurately summarize their respective sections.
+- Even if there's only one section, wrap the JSON object in brackets [] to allow for parsing as an array.
+- It is possible that some PPT pages may contain disordered or missing text, as text extraction from PPT is not perfect, and I cannot provide images, so please do not mind this.
+- If the PPT includes a table of contents, make sure the outlines you create closely match the structure and order of the table of contents.

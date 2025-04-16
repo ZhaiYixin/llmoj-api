@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+import tiktoken
 
 # Create your models here.
 class Conversation(models.Model):
@@ -19,3 +20,16 @@ class Message(models.Model):
 
     def __str__(self):
         return f'{self.role}: {self.content}'
+
+    @staticmethod
+    def count_tokens(text):
+        """粗略计算消息内容的 token 数量"""
+        if not hasattr(Message.count_tokens, "encoding"):
+            Message.count_tokens.encoding = tiktoken.encoding_for_model("gpt-4")
+        tokens = Message.count_tokens.encoding.encode(text)
+        return len(tokens)
+
+    def save(self, *args, **kwargs):
+        if self.tokens == 0:
+            self.tokens = self.count_tokens(self.content)
+        super().save(*args, **kwargs)

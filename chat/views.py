@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 import os
 from openai import OpenAI
 
-from .utils import _count_tokens
 from .models import Conversation, Message
 
 # Load environment variables from .env file
@@ -18,10 +17,10 @@ MODEL = os.getenv("MODEL")
 # Load the prompt from the file
 with open(os.path.join(os.path.dirname(__file__), './prompts/recommendations.txt'), 'r', encoding='utf-8') as file:
     PROMPT_RECOMMENDATIONS = file.read()
-    PROMPT_RECOMMENDATIONS_TOKENS = _count_tokens(PROMPT_RECOMMENDATIONS)
+    PROMPT_RECOMMENDATIONS_TOKENS = Message.count_tokens(PROMPT_RECOMMENDATIONS)
 with open(os.path.join(os.path.dirname(__file__), './prompts/system.txt'), 'r', encoding='utf-8') as file:
     PROMPT_SYSTEM = file.read()
-    PROMPT_SYSTEM_TOKENS = _count_tokens(PROMPT_SYSTEM)
+    PROMPT_SYSTEM_TOKENS = Message.count_tokens(PROMPT_SYSTEM)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -51,7 +50,7 @@ def ask_question(request, conversation_id):
     user_content = data.get("content")
     if not user_content:
         return Response({"error": "Content is required"}, status=status.HTTP_400_BAD_REQUEST)
-    tokens = _count_tokens(user_content)
+    tokens = Message.count_tokens(user_content)
     if tokens > MAX_QUESTION_LENGTH:
         return Response({"error": "Content exceeds maximum length"}, status=status.HTTP_400_BAD_REQUEST)
 
