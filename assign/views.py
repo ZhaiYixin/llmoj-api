@@ -6,8 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import ClassGroup, ClassMember, Assignment, Homework
-from .serializers import ClassGroupSerializer, ClassMemberSerializer, AssignmentSerializer, HomeworkSerializer
+from .models import ClassGroup, ClassMember, Assignment, AssignmentPdf, Homework
+from .serializers import ClassGroupSerializer, ClassMemberSerializer, AssignmentSerializer, AssignmentPdfSerializer, HomeworkSerializer
 from judge.models import Submission
 from design.models import ProblemListItem
 
@@ -45,6 +45,7 @@ class AssignmentView(APIView):
             data = {
                 "assignment": AssignmentSerializer(assignment).data,
                 "homeworks": HomeworkSerializer(assignment.homeworks.all(), many=True).data,
+                "pdfs": AssignmentPdfSerializer(assignment.pdfs.all(), many=True).data,
             }
             return Response(data, status=status.HTTP_200_OK)
         else:
@@ -66,7 +67,11 @@ class AssignmentView(APIView):
     def post(self, request):
         serializer = AssignmentSerializer(data=request.data)
         if serializer.is_valid():
-            assignment = serializer.save()
+            with transaction.atomic():
+                assignment = serializer.save()
+                pdf_ids = request.data.get('pdfs', [])
+                for pdf_id in pdf_ids:
+                    AssignmentPdf.objects.create(assignment=assignment, pdf_id=pdf_id)
             return Response(AssignmentSerializer(assignment).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -74,7 +79,13 @@ class AssignmentView(APIView):
         assignment = get_object_or_404(Assignment, id=assignment_id)
         serializer = AssignmentSerializer(assignment, data=request.data, partial=True)
         if serializer.is_valid():
-            assignment = serializer.save()
+            with transaction.atomic():
+                assignment = serializer.save()
+                pdf_ids = request.data.get('pdfs', [])
+                if pdf_ids:
+                    AssignmentPdf.objects.filter(assignment=assignment).delete()
+                    for pdf_id in pdf_ids:
+                        AssignmentPdf.objects.create(assignment=assignment, pdf_id=pdf_id)
             return Response(AssignmentSerializer(assignment).data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     

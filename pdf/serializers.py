@@ -3,6 +3,11 @@ from .models import Page, Section, PDF, PDFMessage
 from chat.models import Message
 from accounts.serializers import UserSerializer
 
+class PDFSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PDF
+        fields = ['id', 'title', 'file', 'created_at']
+
 class PageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Page

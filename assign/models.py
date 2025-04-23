@@ -3,6 +3,7 @@ from django.conf import settings
 from django.db import models
 
 from design.models import ProblemList
+from pdf.models import PDF
 
 class ClassGroup(models.Model):
     title = models.CharField(max_length=255, default='')
@@ -29,6 +30,14 @@ class Assignment(models.Model):
     
     def __str__(self):
         return f"Assignment for {self.class_group.title} - {self.problem_list.title}"
+
+class AssignmentPdf(models.Model):
+    assignment = models.ForeignKey(Assignment, related_name='pdfs', on_delete=models.CASCADE)
+    pdf = models.ForeignKey(PDF, related_name='assignment_pdfs', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"PDF for {self.assignment.problem_list.title} - {self.assignment.class_group.title}"
 
 class Homework(models.Model):
     assignment = models.ForeignKey(Assignment, related_name='homeworks', on_delete=models.CASCADE)

@@ -1,7 +1,8 @@
 from rest_framework import serializers
 
-from .models import ClassGroup, ClassMember, Assignment, Homework
+from .models import ClassGroup, ClassMember, Assignment, AssignmentPdf, Homework
 from accounts.serializers import UserSerializer
+from pdf.serializers import PDFSerializer
 
 class ClassGroupSerializer(serializers.ModelSerializer):
     teacher = UserSerializer(read_only=True)
@@ -22,6 +23,13 @@ class AssignmentSerializer(serializers.ModelSerializer):
         model = Assignment
         fields = ['id', 'class_group', 'problem_list', 'release_date', 'due_date', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+class AssignmentPdfSerializer(serializers.ModelSerializer):
+    pdf = PDFSerializer(read_only=True)
+    
+    class Meta:
+        model = AssignmentPdf
+        fields = ['id', 'assignment', 'pdf', 'created_at']
 
 class HomeworkSerializer(serializers.ModelSerializer):
     problems = serializers.SerializerMethodField()
