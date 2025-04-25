@@ -10,4 +10,5 @@ urlpatterns = [
     path("assignments/<int:assignment_id>/", views.AssignmentView.as_view(), name="assignment_detail"),
     path("homeworks/", views.HomeworkView.as_view(), name="homeworks"),
     path("homeworks/<int:assignment_id>/", views.HomeworkView.as_view(), name="homework_detail"),
+    path("homeworks/<int:assignment_id>/conversation/", views.start_conversation, name="homework_conversation"),
 ]

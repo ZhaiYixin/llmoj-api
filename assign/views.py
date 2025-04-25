@@ -2,6 +2,7 @@ from django.db import transaction, models
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
@@ -10,6 +11,7 @@ from .models import ClassGroup, ClassMember, Assignment, AssignmentPdf, Homework
 from .serializers import ClassGroupSerializer, ClassMemberSerializer, AssignmentSerializer, AssignmentPdfSerializer, HomeworkSerializer
 from judge.models import Submission
 from design.models import ProblemListItem
+from chat.models import ConversationTemplate, Conversation
 
 # Create your views here.
 class ClassGroupView(APIView):
@@ -111,6 +113,7 @@ class HomeworkView(APIView):
             data = {
                 "assignment": AssignmentSerializer(assignment).data,
                 "homework": HomeworkSerializer(homework).data if homework else None,
+                "pdfs": AssignmentPdfSerializer(assignment.pdfs.all(), many=True).data,
             }
             return Response(data, status=status.HTTP_200_OK)
         else:
@@ -126,6 +129,7 @@ class HomeworkView(APIView):
                 {
                     "assignment": AssignmentSerializer(assignment).data,
                     "homework": HomeworkSerializer(homework_map.get(assignment.id)).data if homework_map.get(assignment.id) else None,
+                    "pdfs": AssignmentPdfSerializer(assignment.pdfs.all(), many=True).data,
                 }
                 for assignment in assignments
             ]
@@ -154,3 +158,24 @@ class HomeworkView(APIView):
             return Response({"error": "Failed to create homework submission", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response(HomeworkSerializer(homework).data, status=status.HTTP_201_CREATED)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def start_conversation(request, assignment_id):
+    assignment = get_object_or_404(Assignment, id=assignment_id)
+    class_member = get_object_or_404(ClassMember, class_group=assignment.class_group, student=request.user)
+    conversation_id = request.data.get('conversation_id')
+    if not conversation_id:
+        return Response({"error": "Conversation ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+    conversation = get_object_or_404(Conversation, id=conversation_id, user=class_member.student, template=assignment.conversation_template)
+    
+    try:
+        with transaction.atomic():
+            homework, _ = Homework.objects.get_or_create(assignment=assignment, class_member=class_member)
+            homework.conversation = conversation
+            homework.save()
+    
+    except Exception as e:
+        return Response({"error": "Failed to start conversation", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    return Response(HomeworkSerializer(homework).data, status=status.HTTP_201_CREATED)

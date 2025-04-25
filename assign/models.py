@@ -4,6 +4,7 @@ from django.db import models
 
 from design.models import ProblemList
 from pdf.models import PDF
+from chat.models import ConversationTemplate, Conversation
 
 class ClassGroup(models.Model):
     title = models.CharField(max_length=255, default='')
@@ -24,6 +25,7 @@ class ClassMember(models.Model):
 class Assignment(models.Model):
     class_group = models.ForeignKey(ClassGroup, related_name='assignments', on_delete=models.CASCADE)
     problem_list = models.ForeignKey(ProblemList, related_name='assignments', on_delete=models.CASCADE)
+    conversation_template = models.ForeignKey(ConversationTemplate, related_name='assignments', on_delete=models.SET_NULL, null=True, blank=True)
     release_date = models.DateTimeField()
     due_date = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -45,6 +47,7 @@ class Homework(models.Model):
     todo_count = models.IntegerField(default=0)  # total number of problems in problem_list
     done_count = models.IntegerField(default=0)  # number of problems solved by the student
     problems = models.TextField(default='{}')  # {problem_list_item_id_1: { 'best_submission': {'id': 1, 'total_count': 5, 'success_count': 3}, 'submissions': [1, 2, 3] }, problem_list_item_id_2: ...}
+    conversation = models.OneToOneField(Conversation, related_name='homework', on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

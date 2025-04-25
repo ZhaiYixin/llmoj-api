@@ -3,9 +3,20 @@ from django.db import models
 import tiktoken
 
 # Create your models here.
+class ConversationTemplate(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='templates', on_delete=models.CASCADE)
+    title = models.CharField(max_length=255, default='')
+    system_message = models.TextField()
+    system_message_tokens = models.IntegerField(default=0)
+    initial_conversation = models.OneToOneField('Conversation', related_name='initial_template', null=True, blank=True, on_delete=models.SET_NULL)
+    starters = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
 class Conversation(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='conversations', on_delete=models.CASCADE)
     title = models.CharField(max_length=255, default='')
+    template = models.ForeignKey(ConversationTemplate, related_name='conversations', null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

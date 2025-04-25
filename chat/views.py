@@ -1,3 +1,5 @@
+from django.db import transaction
+from django.shortcuts import get_object_or_404
 from django.http import StreamingHttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -7,7 +9,7 @@ from dotenv import load_dotenv
 import os
 from openai import OpenAI
 
-from .models import Conversation, Message
+from .models import Conversation, Message, ConversationTemplate
 
 # Load environment variables from .env file
 load_dotenv(override=True)
@@ -78,11 +80,20 @@ def _get_context(conversation_id, available_tokens):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_answer(request, conversation_id):
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+    
     CONTEXT_WINDOW = 8192
     RESERVED_ANSWER_LENGTH = 1024
 
-    messages = [{"role": "system", "content": PROMPT_SYSTEM}]
-    messages += _get_context(conversation_id, CONTEXT_WINDOW - PROMPT_SYSTEM_TOKENS - RESERVED_ANSWER_LENGTH)
+    messages = []
+    tokens = CONTEXT_WINDOW - RESERVED_ANSWER_LENGTH
+    if conversation.template:
+        messages.append({"role": "system", "content": conversation.template.system_message})
+        tokens -= conversation.template.system_message_tokens
+    else:
+        messages.append({"role": "system", "content": PROMPT_SYSTEM})
+        tokens -= PROMPT_SYSTEM_TOKENS
+    messages += _get_context(conversation_id, tokens)
 
     try:
         response = CLIENT.chat.completions.create(
@@ -110,11 +121,19 @@ def get_answer(request, conversation_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_recommendations(request, conversation_id):
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+
     CONTEXT_WINDOW = 2048
     RESERVED_ANSWER_LENGTH = 256
 
-    messages = [{"role": "system", "content": PROMPT_SYSTEM}]
-    messages += _get_context(conversation_id, CONTEXT_WINDOW - PROMPT_SYSTEM_TOKENS - PROMPT_RECOMMENDATIONS_TOKENS - RESERVED_ANSWER_LENGTH)
+    messages = []
+    tokens = CONTEXT_WINDOW - PROMPT_RECOMMENDATIONS_TOKENS - RESERVED_ANSWER_LENGTH
+    if conversation.template:
+        messages.append({"role": "system", "content": conversation.template.system_message})
+        tokens -= conversation.template.system_message_tokens
+    else:
+        messages.append({"role": "system", "content": PROMPT_SYSTEM})
+        tokens -= PROMPT_SYSTEM_TOKENS
     messages.append({"role": "user", "content": PROMPT_RECOMMENDATIONS})
 
     try:
@@ -126,3 +145,39 @@ def get_recommendations(request, conversation_id):
         return Response({"recommendations": recommendations.split('\n')}, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def start_conversation(request):
+    template_id = request.data.get("template_id")
+    if template_id:
+        template = get_object_or_404(ConversationTemplate, id=template_id)
+        with transaction.atomic():
+            conversation = Conversation.objects.create(user=request.user, template=template)
+            if template.initial_conversation:
+                initial_messages = Message.objects.filter(conversation=template.initial_conversation).order_by('created_at')
+                messages_to_create = [
+                    Message(
+                        conversation=conversation,
+                        role=message.role,
+                        content=message.content,
+                        tokens=message.tokens,
+                        created_at=message.created_at
+                    )
+                    for message in initial_messages
+                ]
+                Message.objects.bulk_create(messages_to_create)
+    else:
+        conversation = Conversation.objects.create(user=request.user)
+    return Response({"conversation_id": conversation.id}, status=status.HTTP_201_CREATED)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_template(request, template_id):
+    template = get_object_or_404(ConversationTemplate, id=template_id)
+    return Response({
+        "id": template.id,
+        "title": template.title,
+        "initial_conversation": template.initial_conversation.id if template.initial_conversation else None,
+        "starters": template.starters
+    }, status=status.HTTP_200_OK)
