@@ -154,14 +154,14 @@ class PDFAskQuestionView(APIView):
         tokens = Message.count_tokens(user_content)
         if tokens > MAX_QUESTION_LENGTH:
             return Response({"error": "Content exceeds maximum length"}, status=status.HTTP_400_BAD_REQUEST)
-        page_id = data.get("page_id")
+        page_number = data.get("page_number")
         section_id = data.get("section_id")
 
         try:
             pdf_conversation = PDFConversation.get_or_create_conversation(pdf_id=pdf_id, user=request.user)
             PDFMessage.create_message(
                 pdf_conversation=pdf_conversation,
-                page=get_object_or_404(Page, id=page_id, pdf=pdf_conversation.pdf) if page_id else None,
+                page=get_object_or_404(Page, page_number=page_number, pdf=pdf_conversation.pdf) if page_number else None,
                 section=get_object_or_404(Section, id=section_id, pdf=pdf_conversation.pdf) if section_id else None,
                 role='user',
                 content=user_content,
