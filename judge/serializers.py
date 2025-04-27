@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Problem, TestCase, Submission, TestCaseResult
+from .models import Problem, TestCase, Submission, TestCaseResult, ProblemMessage
+from chat.models import Message
 
 class ProblemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -97,3 +98,16 @@ class TestCaseResultSerializer(serializers.ModelSerializer):
     
     def get_message(self, obj):
         return self.to_message(result=obj.result, output=obj.output, cpu_time=obj.cpu_time, real_time=obj.real_time, memory=obj.memory, exit_code=obj.exit_code, signal=obj.signal, error=obj.error)
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ['id', 'conversation', 'role', 'content', 'created_at']
+
+class ProblemMessageSerializer(serializers.ModelSerializer):
+    message = MessageSerializer(read_only=True)
+
+    class Meta:
+        model = ProblemMessage
+        fields = ['id', 'message']

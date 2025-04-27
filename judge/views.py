@@ -12,7 +12,7 @@ from django.db import transaction
 from openai import OpenAI
 
 from .models import Problem, ProblemConversation, ProblemMessage, TestCase, Submission, TestCaseResult
-from .serializers import ProblemSerializer, TestCaseSerializer, SubmissionSerializer, TestCaseResultSerializer
+from .serializers import ProblemSerializer, TestCaseSerializer, SubmissionSerializer, TestCaseResultSerializer, ProblemMessageSerializer
 from .JudgeServer.client.Python.client import JudgeServerClient
 from .JudgeServer.client.Python.languages import c_lang_config, cpp_lang_config, java_lang_config, c_lang_spj_config, c_lang_spj_compile, py2_lang_config, py3_lang_config, go_lang_config, php_lang_config, js_lang_config
 from chat.models import Conversation, Message
@@ -207,6 +207,16 @@ def get_results(request, problem_id):
     
     serializer = TestCaseResultSerializer(results, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ProblemMessageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, problem_id):
+        problem = get_object_or_404(Problem, id=problem_id)
+        problem_messages = ProblemMessage.objects.filter(problem_conversation__problem=problem, problem_conversation__conversation__user=request.user).select_related('message__conversation').order_by('message__created_at')
+        serializer = ProblemMessageSerializer(problem_messages, many=True)
+        return Response({"messages": serializer.data}, status=status.HTTP_200_OK)
 
 
 class ProblemAskQuestionView(APIView):
