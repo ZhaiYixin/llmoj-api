@@ -1,5 +1,8 @@
 from django.conf import settings
 from django.db import models
+from django.db import transaction
+
+from chat.models import Conversation, Message
 
 # Create your models here.
 class Problem(models.Model):
@@ -78,3 +81,49 @@ class TestCaseResult(models.Model):
 
     def __str__(self):
         return f'Result for {self.submission} on {self.test_case}'
+
+class ProblemConversation(models.Model):
+    problem = models.ForeignKey(Problem, related_name='conversations', on_delete=models.CASCADE)
+    conversation = models.ForeignKey('chat.Conversation', related_name='problem_conversations', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'Conversation {self.conversation.id} for Problem {self.problem.title}'
+
+    @classmethod
+    def get_or_create_conversation(cls, problem_id, user):
+        with transaction.atomic():
+            problem_conversation = cls.objects.filter(problem_id=problem_id, conversation__user=user).first()
+            if not problem_conversation:
+                conversation = Conversation.objects.create(user=user)
+                problem_conversation = cls.objects.create(problem_id=problem_id, conversation=conversation)
+            return problem_conversation
+
+class ProblemMessage(models.Model):
+    problem_conversation = models.ForeignKey(ProblemConversation, related_name='messages', on_delete=models.CASCADE)
+    message = models.OneToOneField(Message, related_name='problem_message', on_delete=models.CASCADE)
+    src = models.TextField(null=True, blank=True)
+    lang = models.CharField(max_length=50, null=True, blank=True)
+    relevant_submission = models.ForeignKey(Submission, related_name='problem_messages', null=True, blank=True, on_delete=models.CASCADE)
+    start_question = models.ForeignKey('ProblemMessage', related_name='successive_questions', null=True, blank=True, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'Message {self.message.id} in Problem {self.problem_conversation.problem.title}'
+    
+    @classmethod
+    def create_message(cls, problem_conversation, role, content, tokens=0, src=None, lang=None, relevant_submission=None, start_question=None):
+        with transaction.atomic():
+            message = Message.objects.create(
+                conversation=problem_conversation.conversation,
+                role=role,
+                content=content,
+                tokens=tokens
+            )
+            problem_message = cls.objects.create(
+                problem_conversation=problem_conversation,
+                message=message,
+                src=src,
+                lang=lang,
+                relevant_submission=relevant_submission,
+                start_question=start_question
+            )
+            return problem_message
