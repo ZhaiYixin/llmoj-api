@@ -122,29 +122,38 @@ def get_answer(request, conversation_id):
 @permission_classes([IsAuthenticated])
 def get_recommendations(request, conversation_id):
     conversation = get_object_or_404(Conversation, id=conversation_id)
+    
+    last_message = Message.objects.filter(conversation=conversation).order_by('-created_at').first()
+    if last_message and conversation.updated_at < last_message.created_at:
+        CONTEXT_WINDOW = 2048
+        RESERVED_ANSWER_LENGTH = 256
 
-    CONTEXT_WINDOW = 2048
-    RESERVED_ANSWER_LENGTH = 256
+        messages = []
+        tokens = CONTEXT_WINDOW - PROMPT_RECOMMENDATIONS_TOKENS - RESERVED_ANSWER_LENGTH
+        if conversation.template:
+            messages.append({"role": "system", "content": conversation.template.system_message})
+            tokens -= conversation.template.system_message_tokens
+        else:
+            messages.append({"role": "system", "content": PROMPT_SYSTEM})
+            tokens -= PROMPT_SYSTEM_TOKENS
+        messages.append({"role": "user", "content": PROMPT_RECOMMENDATIONS})
 
-    messages = []
-    tokens = CONTEXT_WINDOW - PROMPT_RECOMMENDATIONS_TOKENS - RESERVED_ANSWER_LENGTH
-    if conversation.template:
-        messages.append({"role": "system", "content": conversation.template.system_message})
-        tokens -= conversation.template.system_message_tokens
-    else:
-        messages.append({"role": "system", "content": PROMPT_SYSTEM})
-        tokens -= PROMPT_SYSTEM_TOKENS
-    messages.append({"role": "user", "content": PROMPT_RECOMMENDATIONS})
-
-    try:
-        response = CLIENT.chat.completions.create(
-            model=MODEL,
-            messages=messages
-        )
-        recommendations = response.choices[0].message.content
-        return Response({"recommendations": recommendations.split('\n')}, status=status.HTTP_200_OK)
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        try:
+            response = CLIENT.chat.completions.create(
+                model=MODEL,
+                messages=messages
+            )
+            starters = response.choices[0].message.content
+            conversation.starters = starters
+            conversation.save()
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    starters = conversation.starters
+    recommendations = starters.split('\n') if starters else []
+    if conversation.template and conversation.template.starters:
+        recommendations = conversation.template.starters.split('\n') + recommendations
+    return Response({"recommendations": recommendations}, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

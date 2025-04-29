@@ -17,7 +17,9 @@ class Conversation(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='conversations', on_delete=models.CASCADE)
     title = models.CharField(max_length=255, default='')
     template = models.ForeignKey(ConversationTemplate, related_name='conversations', null=True, blank=True, on_delete=models.SET_NULL)
+    starters = models.TextField(default='')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f'{self.title} - {self.user.username} - {self.created_at.strftime("%Y-%m-%d %H:%M:%S")}'

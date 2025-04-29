@@ -1,3 +1,4 @@
+from collections import defaultdict
 from django.db import transaction, models
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -125,13 +126,20 @@ class HomeworkView(APIView):
             homeworks = Homework.objects.filter(assignment__in=assignments, class_member__student=request.user).select_related('assignment')
             homework_map = {hw.assignment_id: hw for hw in homeworks}
             
-            data = [
-                {
+            grouped_assignments = defaultdict(list)
+            for assignment in assignments:
+                grouped_assignments[assignment.class_group_id].append({
                     "assignment": AssignmentSerializer(assignment).data,
                     "homework": HomeworkSerializer(homework_map.get(assignment.id)).data if homework_map.get(assignment.id) else None,
                     "pdfs": AssignmentPdfSerializer(assignment.pdfs.all(), many=True).data,
+                })
+                
+            data = [
+                {
+                    "class_group": ClassGroupSerializer(ClassGroup.objects.get(id=class_group_id)).data,
+                    "assignments": assignments_list,
                 }
-                for assignment in assignments
+                for class_group_id, assignments_list in grouped_assignments.items()
             ]
             
             return Response(data, status=status.HTTP_200_OK)
