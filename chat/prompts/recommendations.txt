@@ -1,15 +1,58 @@
-请你基于先前的问答内容，推荐一些我接下来应该提问的问题。
-你推荐的问题应该是跟我们讨论的主题相关的。
-是读者很可能会有疑惑的内容。
-简短精炼，不要太长。
-引入深思，值得提问。
-问题的数量是2个，3个，或者4个。
-这几个问题应该从不同的视角，覆盖不同的话题。
-不要有另外的解释，或者多余的格式。
+# Task
 
-严格按照以下格式：
-XXX？
-XXX？
-XXX？
+Your task is to recommend some following questions for a conversation between a user and AI assistant, so that the user know what important questions are worth asking.
 
-请你开始推荐问题吧。
+I will send you the content of a conversation between a user and AI assistant, including the developer's system prompt, as well as the recent messages between the user and the assistant.
+You should generate 3 questions that are worth asking next.
+
+Please follow these instructions when generating the questions:
+- Relevant to the conversation.
+- Interesting to the user.
+- Short and clean.
+- Different with each other, all together good yet diverse.
+- Easy to understand at first sight, yet can dig deep and talk a lot.
+
+# Output Format
+
+- Output must be strictly in JSON format.
+- Do not include Python code or any additional information.
+- The JSON object must follow the structure shown in the example, ensuring it is always a valid JSON object.
+
+```json
+["XXX", "XXX", "XXX"]
+```
+
+Ensure your output adheres to this structure, an array including 3 strings.
+
+# Example
+
+If a conversation is about the definition of pointers in C language, the input and output would be as follows:
+
+## Example Input:
+```
+system prompt:
+You are a tutor of a programming course, your task is to answer questions of students, so that ...
+recent messages:
+user question: C语言的指针是什么
+assistant answer: 指针是C语言中一种特殊的数据类型，用于存储变量的内存地址，其基本定义格式为<数据类型>* 指针变量名，其中，<数据类型>是指针所指变量的类型，*表明该变量是指针。
+user question: 你能举一个具体的例子吗
+assistant answer: 好的，比如说如果我们需要根据 ...
+```
+
+## Example Output:
+```json
+["指针有什么用？", "举一个简单易懂的比喻？", "变量的内存地址是什么意思？"]
+```
+
+# Notes
+
+- The format of your output should be adheres to the similar structure, but the content should be adjusted and more detailed based on the actual conversation.
+- The language of your output should be the same language of that user, not necessarily English.
+- Though the conversation history may include many questions, but you should care the most recent questions more, especially the last question.
+- Do NOT prefix or postfix your question with any bullet items, numbers or other special characters (such as "1.", "-", or "```"), just simple plain text.
+- The 3 questions you generate should NOT be too homogeneous with each other, but should cover different aspects of what user may ask next.
+
+# Conclusion
+Your task is to recommend some following questions for a conversation between a user and AI assistant, so that the user know what important questions are worth asking.
+Remember, You should generate 3 questions that are worth asking next, in JSON format, an array including 3 strings.
+Now, I will send you the content of a conversation between a user and AI assistant, including the developer's system prompt, as well as the recent messages between the user and the assistant.

@@ -1,3 +1,4 @@
+import json
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.http import StreamingHttpResponse
@@ -118,6 +119,42 @@ def get_answer(request, conversation_id):
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+def _get_recommendations_get_context(conversation_id, available_tokens):
+    conversation = get_object_or_404(Conversation, id=conversation_id)
+    result = [{"role": "system", "content": PROMPT_RECOMMENDATIONS}]
+
+    prompt = f'# system prompt:\n'
+    if conversation.template:
+        prompt += f'```\n{conversation.template.system_message}\n```\n\n'
+    else:
+        prompt += f'```\n{PROMPT_SYSTEM}\n```\n\n'
+    
+    conclusion = f'# conclusion:\nThat\'s all the content of the conversation, including the developer\'s system prompt, as well as the recent messages between the user and the assistant.\nNow, please generate 3 questions that are worth asking next, based on these content, especially the last question and answer.\n'
+    
+    prompt += f'# recent messages:\n'
+    tokens = available_tokens - Message.count_tokens(prompt + conclusion)
+    user_overhead = Message.count_tokens(f'## user question:\n```\n...\n```\n\n')
+    assistant_overhead = Message.count_tokens(f'## assistant answer:\n```\n...\n```\n\n')
+    conversation_messages = Message.objects.filter(conversation_id=conversation_id).order_by('-created_at')
+    context_messages = []
+    for msg in conversation_messages:
+        tokens -= msg.tokens
+        tokens -= user_overhead if msg.role == 'user' else assistant_overhead
+        if tokens < 0:
+            break
+        else:
+            context_messages.append({"role": msg.role, "content": msg.content})
+    context_messages.reverse()
+    for msg in context_messages:
+        if msg["role"] == 'user':
+            prompt += f'## user question:\n```\n{msg["content"]}\n```\n\n'
+        else:
+            prompt += f'## assistant answer:\n```\n{msg["content"]}\n```\n\n'
+    
+    prompt += conclusion
+    result.append({"role": "user", "content": prompt})
+    return result
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_recommendations(request, conversation_id):
@@ -125,25 +162,20 @@ def get_recommendations(request, conversation_id):
     
     last_message = Message.objects.filter(conversation=conversation).order_by('-created_at').first()
     if last_message and conversation.updated_at < last_message.created_at:
-        CONTEXT_WINDOW = 2048
+        CONTEXT_WINDOW = 4096
         RESERVED_ANSWER_LENGTH = 256
-
-        messages = []
-        tokens = CONTEXT_WINDOW - PROMPT_RECOMMENDATIONS_TOKENS - RESERVED_ANSWER_LENGTH
-        if conversation.template:
-            messages.append({"role": "system", "content": conversation.template.system_message})
-            tokens -= conversation.template.system_message_tokens
-        else:
-            messages.append({"role": "system", "content": PROMPT_SYSTEM})
-            tokens -= PROMPT_SYSTEM_TOKENS
-        messages.append({"role": "user", "content": PROMPT_RECOMMENDATIONS})
-
+        messages = _get_recommendations_get_context(conversation_id, CONTEXT_WINDOW - RESERVED_ANSWER_LENGTH)
+        print(messages)
         try:
             response = CLIENT.chat.completions.create(
                 model=MODEL,
-                messages=messages
+                messages=messages,
+                response_format={'type': 'json_object'},
             )
             starters = response.choices[0].message.content
+            print(starters)
+            starters = json.loads(starters)
+            starters = "\n".join(starters)
             conversation.starters = starters
             conversation.save()
         except Exception as e:
@@ -153,6 +185,7 @@ def get_recommendations(request, conversation_id):
     recommendations = starters.split('\n') if starters else []
     if conversation.template and conversation.template.starters:
         recommendations = conversation.template.starters.split('\n') + recommendations
+    recommendations = [recommendation for recommendation in recommendations if recommendation.strip()]
     return Response({"recommendations": recommendations}, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
