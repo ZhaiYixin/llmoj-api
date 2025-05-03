@@ -1,7 +1,9 @@
+import json
 import os
 
 from django.shortcuts import get_object_or_404
 from django.http import StreamingHttpResponse
+from django.utils import timezone
 from dotenv import load_dotenv
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
@@ -26,6 +28,9 @@ MODEL = os.getenv("MODEL")
 with open(os.path.join(os.path.dirname(__file__), './prompts/answer.txt'), 'r', encoding='utf-8') as file:
     PROMPT_ANSWER = file.read()
     PROMPT_ANSWER_TOKENS = Message.count_tokens(PROMPT_ANSWER)
+with open(os.path.join(os.path.dirname(__file__), './prompts/recommendations.txt'), 'r', encoding='utf-8') as file:
+    PROMPT_RECOMMENDATIONS = file.read()
+    PROMPT_RECOMMENDATIONS_TOKENS = Message.count_tokens(PROMPT_RECOMMENDATIONS)
 
 # Create your views here.
 @api_view(['GET'])
@@ -401,3 +406,72 @@ class ProblemGetAnswerView(APIView):
         }
         return lang_dict.get(lang, "")
 
+
+class ProblemGetRecommendationsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, problem_id):
+        problem = get_object_or_404(Problem, id=problem_id)
+        problem_conversation = ProblemConversation.get_or_create_conversation(problem_id=problem_id, user=request.user)
+        conversation =problem_conversation.conversation
+        
+        last_problem_message = ProblemMessage.objects.filter(problem_conversation=problem_conversation).order_by('-message__created_at').first()
+        last_message = last_problem_message.message if last_problem_message else None
+        if last_message and conversation.updated_at < last_message.created_at:
+            CONTEXT_WINDOW = 4096
+            RESERVED_ANSWER_LENGTH = 256
+            messages = self._get_context(problem, conversation, CONTEXT_WINDOW - RESERVED_ANSWER_LENGTH)
+            try:
+                response = LLM_CLIENT.chat.completions.create(
+                    model=MODEL,
+                    messages=messages,
+                    response_format={'type': 'json_object'},
+                )
+                starters = response.choices[0].message.content
+                starters = json.loads(starters)
+                starters = "\n".join(starters)
+                conversation.starters = starters
+                conversation.save()
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        if conversation.starters:
+            recommendations = conversation.starters.split('\n')
+        else:
+            recommendations = ['这道题对我来说太难了', '我该如何开始？', '请给我一点提示']
+        recommendations = list(filter(str.strip, recommendations))
+        return Response({"recommendations": recommendations}, status=status.HTTP_200_OK)
+    
+    @staticmethod
+    def _get_context(problem, conversation, available_tokens):
+        result = [{"role": "system", "content": PROMPT_RECOMMENDATIONS}]
+        prompt = f'# exercise:\n'
+        prompt += f'## {problem.title}\n'
+        prompt += f'```\n{problem.description}\n```\n\n'
+        prompt += f'# recent messages:\n'
+        conclusion = f'# conclusion:\nThat\'s all the content of the conversation, including the exercise\'s descriptiont, as well as the recent messages between the student and the teacher.\nNow, please generate 3 questions that are worth asking next, based on these content, especially the last question and answer.\n'
+        tokens = available_tokens - PROMPT_RECOMMENDATIONS_TOKENS - Message.count_tokens(prompt) - Message.count_tokens(conclusion)
+        if tokens < 0:
+            raise ValueError("Not enough tokens available for basic prompt")
+        
+        student_overhead = Message.count_tokens(f'## student:\n```\n...\n```\n\n')
+        teacher_overhead = Message.count_tokens(f'## teacher:\n```\n...\n```\n\n')
+        conversation_messages = Message.objects.filter(conversation=conversation).order_by('-created_at')
+        context_messages = []
+        for msg in conversation_messages:
+            tokens -= msg.tokens
+            tokens -= student_overhead if msg.role == 'user' else teacher_overhead
+            if tokens < 0:
+                break
+            else:
+                context_messages.append({"role": msg.role, "content": msg.content})
+        context_messages.reverse()
+        for msg in context_messages:
+            if msg["role"] == 'user':
+                prompt += f'## student:\n```\n{msg["content"]}\n```\n\n'
+            else:
+                prompt += f'## teacher:\n```\n{msg["content"]}\n```\n\n'
+        
+        prompt += conclusion
+        result.append({"role": "user", "content": prompt})
+        return result

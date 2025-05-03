@@ -13,4 +13,5 @@ urlpatterns = [
     path("problems/<int:problem_id>/messages/", views.ProblemMessageView.as_view(), name="messages"),
     path("problems/<int:problem_id>/ask/", views.ProblemAskQuestionView.as_view(), name="ask"),
     path("problems/<int:problem_id>/answer/", views.ProblemGetAnswerView.as_view(), name="answer"),
+    path("problems/<int:problem_id>/recommendations/", views.ProblemGetRecommendationsView.as_view(), name="recommendations"),
 ]

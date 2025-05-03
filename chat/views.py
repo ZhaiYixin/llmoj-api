@@ -132,7 +132,7 @@ def _get_recommendations_get_context(conversation_id, available_tokens):
     conclusion = f'# conclusion:\nThat\'s all the content of the conversation, including the developer\'s system prompt, as well as the recent messages between the user and the assistant.\nNow, please generate 3 questions that are worth asking next, based on these content, especially the last question and answer.\n'
     
     prompt += f'# recent messages:\n'
-    tokens = available_tokens - Message.count_tokens(prompt + conclusion)
+    tokens = available_tokens - PROMPT_RECOMMENDATIONS_TOKENS - Message.count_tokens(prompt) - Message.count_tokens(conclusion)
     user_overhead = Message.count_tokens(f'## user question:\n```\n...\n```\n\n')
     assistant_overhead = Message.count_tokens(f'## assistant answer:\n```\n...\n```\n\n')
     conversation_messages = Message.objects.filter(conversation_id=conversation_id).order_by('-created_at')
@@ -165,7 +165,6 @@ def get_recommendations(request, conversation_id):
         CONTEXT_WINDOW = 4096
         RESERVED_ANSWER_LENGTH = 256
         messages = _get_recommendations_get_context(conversation_id, CONTEXT_WINDOW - RESERVED_ANSWER_LENGTH)
-        print(messages)
         try:
             response = CLIENT.chat.completions.create(
                 model=MODEL,
@@ -173,7 +172,6 @@ def get_recommendations(request, conversation_id):
                 response_format={'type': 'json_object'},
             )
             starters = response.choices[0].message.content
-            print(starters)
             starters = json.loads(starters)
             starters = "\n".join(starters)
             conversation.starters = starters
