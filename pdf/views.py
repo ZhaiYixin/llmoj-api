@@ -83,8 +83,7 @@ class PDFAnalysisView(APIView):
         with default_storage.open(file_path, 'rb') as file_stream:
             with pdfplumber.open(file_stream) as file_parsed:
                 pages = [page.extract_text() for page in file_parsed.pages]
-        pdf_text = f"# {pdf.title}\n\n" + "\n".join([f"## 第 {i + 1} 页\n" + (f'```\n{page}\n```\n' if page else '无文本\n') for i, page in enumerate(pages)])
-        
+        pdf_text = f'<PPT title="{pdf.title}">\n' + ''.join([f'<page number="{i+1}">\n{page}\n</page>\n' for i, page in enumerate(pages)]) + '</PPT>'
         # 调用大语言模型来生成大纲
         messages = [
             {"role": "system", "content": PROMPT_SUMMARIZE},
@@ -114,7 +113,8 @@ class PDFAnalysisView(APIView):
                     title=s.get("title", ""),
                     description=s.get("description", ""),
                     start_page=s.get("start_page"),
-                    end_page=s.get("end_page")
+                    end_page=s.get("end_page"),
+                    questions='\n'.join(s.get("questions", []))
                 )
         
         return Response({"message": "PDF analyzed and sections saved successfully"}, status=status.HTTP_200_OK)

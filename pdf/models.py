@@ -27,6 +27,7 @@ class Section(models.Model):
     end_page = models.IntegerField()
     title = models.CharField(max_length=255, default='')
     description = models.TextField()
+    questions = models.TextField(default='')
     
     def __str__(self):
         return f'Section {self.title} of {self.pdf.title} (page {self.start_page}-{self.end_page})'

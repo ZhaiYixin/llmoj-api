@@ -14,9 +14,18 @@ class PageSerializer(serializers.ModelSerializer):
         fields = ['id', 'page_number', 'content']
 
 class SectionSerializer(serializers.ModelSerializer):
+    questions = serializers.SerializerMethodField()
+    
     class Meta:
         model = Section
-        fields = ['id', 'title', 'description', 'start_page', 'end_page']
+        fields = ['id', 'title', 'description', 'start_page', 'end_page', 'questions']
+
+    def get_questions(self, obj):
+        if not obj.questions:
+            return []
+        questions = obj.questions.split('\n')
+        questions = list(filter(str.strip, questions))
+        return questions
 
 class PDFAnalysisSerializer(serializers.ModelSerializer):
     pages = PageSerializer(many=True, read_only=True)
