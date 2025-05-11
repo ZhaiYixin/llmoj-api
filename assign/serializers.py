@@ -33,10 +33,11 @@ class ConversationTemplateSerializer(serializers.ModelSerializer):
 class AssignmentSerializer(serializers.ModelSerializer):    
     conversation_template = ConversationTemplateSerializer(read_only=True)
     problem_list = ProblemListSerializer(read_only=True)
+    problem_list_id = serializers.PrimaryKeyRelatedField(queryset=ProblemList.objects.all(), source='problem_list', write_only=True)
 
     class Meta:
         model = Assignment
-        fields = ['id', 'class_group', 'problem_list', 'conversation_template', 'release_date', 'due_date', 'created_at']
+        fields = ['id', 'class_group', 'problem_list', 'problem_list_id', 'conversation_template', 'release_date', 'due_date', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 class AssignmentPdfSerializer(serializers.ModelSerializer):
