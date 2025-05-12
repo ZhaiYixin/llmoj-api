@@ -10,13 +10,13 @@
 
 模块的依赖关系如下：
 
-![模块依赖图](docs\img\module_dependency.png)
+![模块依赖图](https://github.com/ZhaiYixin/llmoj-api/blob/main/docs/img/module_dependency.png?raw=true)
 
 ## 数据库里有哪些表？
 
 数据库的ER图如下：
 
-![数据库ER图](docs\img\database_ER.png)
+![数据库ER图](https://github.com/ZhaiYixin/llmoj-api/blob/main/docs/img/database_ER.png?raw=true)
 
 ## 有调用什么外部API吗？
 
